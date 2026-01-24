@@ -5,15 +5,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY dashboard.py .
-COPY main.py .
-COPY templates/ templates/
+COPY app/ app/
+COPY run.py .
+COPY config.env.example config.env
 
-# Create empty data files
-RUN echo '[]' > processed_emails.json && \
-    echo '{}' > pending_articles.json && \
-    echo '[]' > published_articles.json
+# Create data directory
+RUN mkdir -p data
 
 EXPOSE 5050
 
-CMD ["python", "dashboard.py"]
+CMD ["python", "run.py"]

@@ -24,18 +24,20 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Load environment
-load_dotenv('config.env')
+BASE_DIR = Path(__file__).parent.parent
+load_dotenv(BASE_DIR / 'config.env')
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = 'wordpress-article-maker-secret'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Paths
-CONFIG_FILE = Path(__file__).parent / 'config.env'
-PROCESSED_FILE = Path(__file__).parent / 'processed_emails.json'
-PENDING_FILE = Path(__file__).parent / 'pending_articles.json'
-PUBLISHED_FILE = Path(__file__).parent / 'published_articles.json'
-PROMPT_FILE = Path(__file__).parent / 'prompt_config.json'
+# Paths - data files in project root
+CONFIG_FILE = BASE_DIR / 'config.env'
+DATA_DIR = BASE_DIR / 'data'
+PROCESSED_FILE = DATA_DIR / 'processed_emails.json'
+PENDING_FILE = DATA_DIR / 'pending_articles.json'
+PUBLISHED_FILE = DATA_DIR / 'published_articles.json'
+PROMPT_FILE = DATA_DIR / 'prompt_config.json'
 
 # Cache for emails
 email_cache = []
@@ -728,5 +730,7 @@ def handle_refresh():
 
 
 if __name__ == '__main__':
+    # Ensure data directory exists
+    DATA_DIR.mkdir(exist_ok=True)
     load_pending_articles()
     socketio.run(app, host='0.0.0.0', port=5050, debug=True)

@@ -1,0 +1,5 @@
+# This directory stores runtime data files
+# processed_emails.json
+# pending_articles.json
+# published_articles.json
+# prompt_config.json

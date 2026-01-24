@@ -4,10 +4,8 @@ config.env
 .env
 
 # Data files (contain personal data)
-processed_emails.json
-pending_articles.json
-published_articles.json
-prompt_config.json
+data/*.json
+!data/.gitkeep
 
 # Logs
 *.log

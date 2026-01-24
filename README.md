@@ -37,7 +37,7 @@
 
 ```bash
 # Cloner le repo
-git clone https://github.com/votre-username/wordpress-article-maker.git
+git clone https://github.com/mkarki/wordpress-article-maker.git
 cd wordpress-article-maker
 
 # Installer les dépendances
@@ -92,14 +92,14 @@ FILTER_SENDER=              # Filtrer par expéditeur (optionnel)
 ### Dashboard Web (recommandé)
 
 ```bash
-python dashboard.py
+python run.py
 # Ouvrir http://localhost:5050
 ```
 
 ### Mode CLI (automatique)
 
 ```bash
-python main.py
+python app/main.py
 ```
 
 ### Docker
@@ -129,15 +129,20 @@ Le dashboard web permet de :
 
 ```
 wordpress-article-maker/
-├── dashboard.py           # Dashboard Flask
-├── main.py                # Mode CLI automatique
+├── app/                   # Code source
+│   ├── __init__.py
+│   ├── dashboard.py       # Dashboard Flask
+│   ├── main.py            # Mode CLI automatique
+│   └── templates/
+│       └── dashboard.html # Interface web
+├── data/                  # Données runtime (non versionné)
 ├── config.env             # Configuration (non versionné)
 ├── config.env.example     # Template de configuration
-├── prompt_config.json     # Prompt IA personnalisable
 ├── requirements.txt       # Dépendances Python
-├── templates/
-│   └── dashboard.html     # Interface web
-└── Dockerfile             # Déploiement Docker
+├── run.py                 # Point d'entrée
+├── Dockerfile             # Déploiement Docker
+├── README.md
+└── LICENSE
 ```
 
 ## 📄 License
