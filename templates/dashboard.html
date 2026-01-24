@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPress Article Maker - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .notification-enter { animation: slideIn 0.3s ease-out; }
+        .notification-exit { animation: slideOut 0.3s ease-in; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        .interesting-badge { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Notifications Container -->
+    <div id="notifications" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm"></div>
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="flex items-center justify-between max-w-7xl mx-auto">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold">WordPress Article Maker</h1>
+                    <p class="text-sm text-gray-400">Email → Article Pipeline</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="connection-status" class="flex items-center gap-2 text-sm">
+                    <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                    Connecté
+                </span>
+                <button onclick="showTab('config')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
+                    ⚙️ Configuration
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-6">
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6">
+            <button onclick="showTab('emails')" id="tab-emails" class="tab-btn px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium transition">
+                📧 Emails
+            </button>
+            <button onclick="showTab('pending')" id="tab-pending" class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
+                📝 Articles en attente
+            </button>
+            <button onclick="showTab('config')" id="tab-config" class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
+                ⚙️ Configuration
+            </button>
+            <button onclick="showTab('history')" id="tab-history" class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
+                📊 Historique
+            </button>
+        </div>
+
+        <!-- Emails Tab -->
+        <div id="panel-emails" class="tab-panel">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Tous les emails</h2>
+                <button onclick="refreshEmails()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center gap-2 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Rafraîchir
+                </button>
+            </div>
+            
+            <div id="emails-list" class="space-y-3">
+                <div class="text-center py-12 text-gray-500">
+                    <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    <p>Cliquez sur "Rafraîchir" pour charger les emails</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Articles Tab -->
+        <div id="panel-pending" class="tab-panel hidden">
+            <h2 class="text-lg font-semibold mb-4">Articles en attente de publication</h2>
+            <div id="pending-list" class="space-y-4">
+                <div class="text-center py-12 text-gray-500">
+                    <p>Aucun article en attente</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="panel-history" class="tab-panel hidden">
+            <h2 class="text-lg font-semibold mb-4">Articles publiés sur WordPress</h2>
+            <div id="history-list" class="space-y-3">
+                <div class="text-center py-12 text-gray-500">
+                    <p>Aucun article publié</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div id="panel-config" class="tab-panel hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Email Config -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">📧</span>
+                        Configuration Email (IMAP)
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Serveur IMAP</label>
+                            <input type="text" id="cfg-imap-host" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="imap.gmail.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Email</label>
+                            <input type="email" id="cfg-imap-email" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="presse@domain.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Mot de passe (App Password)</label>
+                            <input type="password" id="cfg-imap-password" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="••••••••">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WordPress Config -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">🌐</span>
+                        Configuration WordPress
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">URL du site</label>
+                            <input type="url" id="cfg-wp-url" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="https://votresite.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Utilisateur</label>
+                            <input type="text" id="cfg-wp-user" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="admin">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Application Password</label>
+                            <input type="password" id="cfg-wp-password" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="xxxx xxxx xxxx xxxx">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Config -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">🤖</span>
+                        Configuration IA
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Fournisseur IA</label>
+                            <select id="cfg-ai-provider" onchange="toggleAIFields()" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                                <option value="anthropic">Anthropic (Claude)</option>
+                                <option value="openai">OpenAI (GPT)</option>
+                                <option value="gemini">Google (Gemini)</option>
+                                <option value="ollama">Ollama (Local)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Anthropic fields -->
+                        <div id="ai-anthropic" class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Clé API Anthropic</label>
+                                <input type="password" id="cfg-anthropic-key" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="sk-ant-xxx">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Modèle</label>
+                                <select id="cfg-anthropic-model" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                                    <option value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</option>
+                                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                                    <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                                    <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- OpenAI fields -->
+                        <div id="ai-openai" class="space-y-3 hidden">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Clé API OpenAI</label>
+                                <input type="password" id="cfg-openai-key" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="sk-xxx">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Modèle</label>
+                                <select id="cfg-openai-model" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                                    <option value="gpt-4o">GPT-4o</option>
+                                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Gemini fields -->
+                        <div id="ai-gemini" class="space-y-3 hidden">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Clé API Google</label>
+                                <input type="password" id="cfg-gemini-key" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="xxx">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Modèle</label>
+                                <select id="cfg-gemini-model" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                    <option value="gemini-pro">Gemini Pro</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Ollama fields -->
+                        <div id="ai-ollama" class="space-y-3 hidden">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">URL Ollama</label>
+                                <input type="text" id="cfg-ollama-url" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="http://localhost:11434">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Modèle</label>
+                                <input type="text" id="cfg-ollama-model" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="llama3">
+                            </div>
+                        </div>
+                        
+                        <div class="pt-2 border-t border-gray-700">
+                            <label class="block text-sm text-gray-400 mb-1">Langue cible</label>
+                            <select id="cfg-target-lang" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                                <option value="fr">Français</option>
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                                <option value="de">Deutsch</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Config -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">⚡</span>
+                        Configuration Pipeline
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Filtrer par expéditeur (laisser vide pour tous)</label>
+                            <input type="email" id="cfg-filter-sender" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="exemple@domain.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Intervalle de vérification (secondes)</label>
+                            <input type="number" id="cfg-interval" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" value="300">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Max emails par cycle</label>
+                            <input type="number" id="cfg-max-emails" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500" value="5">
+                        </div>
+                        <div class="flex items-center gap-3 pt-2">
+                            <input type="checkbox" id="cfg-auto-publish" class="w-5 h-5 bg-gray-700 border border-gray-600 rounded focus:ring-blue-500">
+                            <label for="cfg-auto-publish" class="text-sm text-gray-300">
+                                <strong>Mode automatique</strong> - Générer et publier automatiquement sans validation
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Prompt Config -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 col-span-1 lg:col-span-2">
+                <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">✨</span>
+                    Prompt IA (personnalisation de l'article)
+                </h3>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Instructions pour Claude</label>
+                    <textarea id="cfg-prompt" rows="12" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 font-mono text-sm" placeholder="Tu es un rédacteur web..."></textarea>
+                    <p class="text-xs text-gray-500 mt-2">Ce prompt définit comment Claude transforme les emails en articles. Le format JSON de sortie doit inclure: title, content, excerpt, tags</p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-6 flex gap-4">
+                <button onclick="saveConfig()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition">
+                    💾 Sauvegarder la configuration
+                </button>
+                <button onclick="savePrompt()" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition">
+                    ✨ Sauvegarder le prompt
+                </button>
+                <button onclick="testConnections()" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">
+                    🔌 Tester les connexions
+                </button>
+            </div>
+
+            <!-- Connection Test Results -->
+            <div id="test-results" class="mt-6 hidden">
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Résultats des tests</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div id="test-imap" class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="flex items-center gap-2">
+                            <span class="status-icon">⏳</span>
+                            <span>IMAP</span>
+                        </div>
+                    </div>
+                    <div id="test-wp" class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="flex items-center gap-2">
+                            <span class="status-icon">⏳</span>
+                            <span>WordPress</span>
+                        </div>
+                    </div>
+                    <div id="test-ai" class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="flex items-center gap-2">
+                            <span class="status-icon">⏳</span>
+                            <span>Claude AI</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Article Preview Modal -->
+    <div id="preview-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                <h3 class="text-xl font-semibold">Prévisualisation de l'article</h3>
+                <button onclick="closePreview()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="preview-loading" class="text-center py-12">
+                    <div class="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <p class="text-gray-400">Génération de l'article en cours...</p>
+                </div>
+                <div id="preview-content" class="hidden">
+                    <div class="mb-6">
+                        <label class="text-sm text-gray-400">Titre</label>
+                        <h2 id="preview-title" class="text-2xl font-bold mt-1"></h2>
+                    </div>
+                    <div class="mb-6">
+                        <label class="text-sm text-gray-400">Extrait</label>
+                        <p id="preview-excerpt" class="text-gray-300 mt-1 italic"></p>
+                    </div>
+                    <div class="mb-6">
+                        <label class="text-sm text-gray-400">Tags</label>
+                        <div id="preview-tags" class="flex gap-2 mt-2"></div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-400">Contenu</label>
+                        <div id="preview-body" class="mt-2 prose prose-invert max-w-none bg-gray-900 rounded-lg p-4"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-700 flex justify-end gap-4">
+                <button onclick="closePreview()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition">
+                    Annuler
+                </button>
+                <button id="btn-publish" onclick="publishArticle()" class="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition hidden">
+                    🚀 Publier en draft
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        let currentEmailId = null;
+
+        // Notifications
+        function showNotification(type, message) {
+            const container = document.getElementById('notifications');
+            const colors = {
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                info: 'bg-blue-600',
+                warning: 'bg-yellow-600'
+            };
+            const icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ',
+                warning: '⚠'
+            };
+            
+            const notif = document.createElement('div');
+            notif.className = `${colors[type]} px-4 py-3 rounded-lg shadow-lg notification-enter flex items-center gap-3`;
+            notif.innerHTML = `
+                <span class="text-lg">${icons[type]}</span>
+                <span class="flex-1">${message}</span>
+            `;
+            container.appendChild(notif);
+            
+            setTimeout(() => {
+                notif.classList.remove('notification-enter');
+                notif.classList.add('notification-exit');
+                setTimeout(() => notif.remove(), 300);
+            }, 4000);
+        }
+
+        socket.on('notification', (data) => {
+            showNotification(data.type, data.message);
+        });
+
+        socket.on('emails_updated', (emails) => {
+            renderEmails(emails);
+        });
+
+        socket.on('article_generated', (article) => {
+            showArticlePreview(article);
+        });
+
+        // Tabs
+        function showTab(tab) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('bg-blue-600');
+                b.classList.add('bg-gray-700');
+            });
+            
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.remove('bg-gray-700');
+            document.getElementById(`tab-${tab}`).classList.add('bg-blue-600');
+            
+            if (tab === 'pending') loadPendingArticles();
+            if (tab === 'config') loadConfig();
+            if (tab === 'history') loadPublishedHistory();
+        }
+
+        // Emails
+        function refreshEmails() {
+            socket.emit('refresh_emails');
+            fetch('/api/emails')
+                .then(r => r.json())
+                .then(emails => renderEmails(emails));
+        }
+
+        function renderEmails(emails) {
+            const container = document.getElementById('emails-list');
+            
+            if (emails.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <p>Aucun email non lu</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = emails.map(email => `
+                <div class="bg-gray-800 rounded-xl p-4 border ${email.is_interesting ? 'border-green-500/50' : 'border-gray-700'} hover:border-gray-600 transition cursor-pointer" onclick="selectEmail('${email.id}')">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                ${email.is_interesting ? '<span class="interesting-badge px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Intéressant</span>' : ''}
+                                <span class="text-xs text-gray-500">${email.date}</span>
+                                <span class="text-xs px-2 py-0.5 bg-gray-700 rounded">${email.language.toUpperCase()}</span>
+                            </div>
+                            <h4 class="font-medium truncate">${email.subject}</h4>
+                            <p class="text-sm text-gray-400 mt-1">${email.sender_name}</p>
+                            <p class="text-sm text-gray-500 mt-2 line-clamp-2">${email.preview}</p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="event.stopPropagation(); generatePreview('${email.id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition">
+                                ✨ Générer
+                            </button>
+                            <span class="text-xs text-gray-500 text-center">${email.word_count} mots</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectEmail(id) {
+            currentEmailId = id;
+            // Could show email detail panel here
+        }
+
+        function generatePreview(emailId) {
+            currentEmailId = emailId;
+            document.getElementById('preview-modal').classList.remove('hidden');
+            document.getElementById('preview-loading').classList.remove('hidden');
+            document.getElementById('preview-content').classList.add('hidden');
+            document.getElementById('btn-publish').classList.add('hidden');
+            
+            fetch(`/api/generate/${emailId}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(article => {
+                    if (article.error) {
+                        showNotification('error', article.error);
+                        closePreview();
+                    }
+                });
+        }
+
+        function showArticlePreview(article) {
+            document.getElementById('preview-loading').classList.add('hidden');
+            document.getElementById('preview-content').classList.remove('hidden');
+            document.getElementById('btn-publish').classList.remove('hidden');
+            
+            document.getElementById('preview-title').textContent = article.title;
+            document.getElementById('preview-excerpt').textContent = article.excerpt;
+            document.getElementById('preview-body').innerHTML = article.content;
+            
+            const tagsContainer = document.getElementById('preview-tags');
+            tagsContainer.innerHTML = article.tags.map(tag => 
+                `<span class="px-3 py-1 bg-gray-700 rounded-full text-sm">${tag}</span>`
+            ).join('');
+        }
+
+        function closePreview() {
+            document.getElementById('preview-modal').classList.add('hidden');
+        }
+
+        function publishArticle() {
+            if (!currentEmailId) return;
+            
+            fetch(`/api/publish/${currentEmailId}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(result => {
+                    if (result.status === 'ok') {
+                        closePreview();
+                        refreshEmails();
+                        loadPendingArticles();
+                    }
+                });
+        }
+
+        // Pending Articles
+        function loadPendingArticles() {
+            fetch('/api/pending')
+                .then(r => r.json())
+                .then(articles => {
+                    const container = document.getElementById('pending-list');
+                    
+                    if (articles.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-12 text-gray-500">
+                                <p>Aucun article en attente</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    container.innerHTML = articles.map(article => `
+                        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <h4 class="font-medium">${article.title}</h4>
+                                    <p class="text-sm text-gray-400 mt-1">${article.excerpt}</p>
+                                    <div class="flex gap-2 mt-2">
+                                        ${article.tags.map(t => `<span class="text-xs px-2 py-0.5 bg-gray-700 rounded">${t}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="publishPending('${article.email_id}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-sm transition">
+                                        🚀 Publier
+                                    </button>
+                                    <button onclick="deletePending('${article.email_id}')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm transition">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function publishPending(emailId) {
+            fetch(`/api/publish/${emailId}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(result => {
+                    if (result.error) {
+                        showNotification('error', result.error);
+                    } else {
+                        showNotification('success', `Article publié (ID: ${result.post_id})`);
+                        loadPendingArticles();
+                        loadPublishedHistory();
+                    }
+                })
+                .catch(err => showNotification('error', 'Erreur de publication: ' + err));
+        }
+
+        function deletePending(emailId) {
+            fetch(`/api/pending/${emailId}`, { method: 'DELETE' })
+                .then(() => loadPendingArticles());
+        }
+
+        // History
+        function loadPublishedHistory() {
+            fetch('/api/published')
+                .then(r => r.json())
+                .then(articles => {
+                    const container = document.getElementById('history-list');
+                    
+                    if (articles.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-12 text-gray-500">
+                                <p>Aucun article publié</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    container.innerHTML = articles.map(article => `
+                        <div class="bg-gray-800 rounded-xl p-4 border border-green-500/30">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">✓ Publié</span>
+                                        <span class="text-xs text-gray-500">${new Date(article.published_at).toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <h4 class="font-medium">${article.title}</h4>
+                                    <p class="text-sm text-gray-400 mt-1">Email: ${article.email_subject}</p>
+                                    <p class="text-sm text-gray-500 mt-1">WordPress ID: ${article.post_id}</p>
+                                </div>
+                                <a href="${article.wp_url}" target="_blank" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition">
+                                    🔗 Voir
+                                </a>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        // AI Provider toggle
+        function toggleAIFields() {
+            const provider = document.getElementById('cfg-ai-provider').value;
+            ['anthropic', 'openai', 'gemini', 'ollama'].forEach(p => {
+                document.getElementById(`ai-${p}`).classList.toggle('hidden', p !== provider);
+            });
+        }
+
+        // Config
+        function loadConfig() {
+            fetch('/api/config')
+                .then(r => r.json())
+                .then(config => {
+                    document.getElementById('cfg-imap-host').value = config.imap_host || '';
+                    document.getElementById('cfg-imap-email').value = config.imap_email || '';
+                    document.getElementById('cfg-wp-url').value = config.wp_url || '';
+                    document.getElementById('cfg-wp-user').value = config.wp_user || '';
+                    document.getElementById('cfg-target-lang').value = config.target_lang || 'fr';
+                    document.getElementById('cfg-interval').value = config.check_interval || '300';
+                    document.getElementById('cfg-max-emails').value = config.max_emails_per_cycle || '5';
+                    document.getElementById('cfg-filter-sender').value = config.filter_sender || '';
+                    document.getElementById('cfg-auto-publish').checked = config.auto_publish === 'true';
+                    
+                    // AI provider settings
+                    document.getElementById('cfg-ai-provider').value = config.ai_provider || 'anthropic';
+                    document.getElementById('cfg-anthropic-model').value = config.anthropic_model || 'claude-sonnet-4-5-20250929';
+                    document.getElementById('cfg-openai-model').value = config.openai_model || 'gpt-4o';
+                    document.getElementById('cfg-gemini-model').value = config.gemini_model || 'gemini-1.5-pro';
+                    document.getElementById('cfg-ollama-url').value = config.ollama_url || 'http://localhost:11434';
+                    document.getElementById('cfg-ollama-model').value = config.ollama_model || 'llama3';
+                    toggleAIFields();
+                });
+            
+            // Load prompt
+            fetch('/api/prompt')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('cfg-prompt').value = data.system_prompt || '';
+                });
+        }
+        
+        function savePrompt() {
+            const prompt = document.getElementById('cfg-prompt').value;
+            fetch('/api/prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ system_prompt: prompt })
+            });
+        }
+
+        function saveConfig() {
+            const config = {
+                imap_host: document.getElementById('cfg-imap-host').value,
+                imap_email: document.getElementById('cfg-imap-email').value,
+                imap_password: document.getElementById('cfg-imap-password').value,
+                wp_url: document.getElementById('cfg-wp-url').value,
+                wp_user: document.getElementById('cfg-wp-user').value,
+                wp_app_password: document.getElementById('cfg-wp-password').value,
+                anthropic_api_key: document.getElementById('cfg-anthropic-key').value,
+                ai_provider: document.getElementById('cfg-ai-provider').value,
+                anthropic_model: document.getElementById('cfg-anthropic-model').value,
+                openai_api_key: document.getElementById('cfg-openai-key').value,
+                openai_model: document.getElementById('cfg-openai-model').value,
+                gemini_api_key: document.getElementById('cfg-gemini-key').value,
+                gemini_model: document.getElementById('cfg-gemini-model').value,
+                ollama_url: document.getElementById('cfg-ollama-url').value,
+                ollama_model: document.getElementById('cfg-ollama-model').value,
+                target_lang: document.getElementById('cfg-target-lang').value,
+                check_interval: document.getElementById('cfg-interval').value,
+                max_emails_per_cycle: document.getElementById('cfg-max-emails').value,
+                filter_sender: document.getElementById('cfg-filter-sender').value,
+                auto_publish: document.getElementById('cfg-auto-publish').checked ? 'true' : 'false'
+            };
+            
+            // Remove empty passwords (don't overwrite)
+            Object.keys(config).forEach(key => {
+                if (config[key] === '' || config[key] === '••••••••') {
+                    delete config[key];
+                }
+            });
+            
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+        }
+
+        function testConnections() {
+            const results = document.getElementById('test-results');
+            results.classList.remove('hidden');
+            
+            ['test-imap', 'test-wp', 'test-ai'].forEach(id => {
+                document.querySelector(`#${id} .status-icon`).textContent = '⏳';
+            });
+            
+            fetch('/api/test-connection', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    document.querySelector('#test-imap .status-icon').textContent = data.imap ? '✅' : '❌';
+                    document.querySelector('#test-wp .status-icon').textContent = data.wordpress ? '✅' : '❌';
+                    document.querySelector('#test-ai .status-icon').textContent = data.anthropic ? '✅' : '❌';
+                });
+        }
+
+        // Initial load
+        loadConfig();
+    </script>
+</body>
+</html>
