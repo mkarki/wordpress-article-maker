@@ -1,23 +1,24 @@
 # WordPress Article Maker
 
-🚀 Système automatisé qui transforme les emails (communiqués de presse) en articles WordPress via IA.
+🚀 Automated pipeline that transforms emails (press releases) into WordPress articles using AI.
 
-![Dashboard](https://img.shields.io/badge/Dashboard-Flask-blue) ![AI](https://img.shields.io/badge/AI-Claude%20Sonnet-purple) ![WordPress](https://img.shields.io/badge/CMS-WordPress-green)
+![Dashboard](https://img.shields.io/badge/Dashboard-Flask-blue) ![AI](https://img.shields.io/badge/AI-Multi--Provider-purple) ![WordPress](https://img.shields.io/badge/CMS-WordPress-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- **📧 Monitoring IMAP** - Récupération automatique des emails
-- **🤖 Génération IA** - Transformation en articles via Claude Sonnet
-- **📝 Preview** - Prévisualisation avant publication
-- **🚀 Publication WordPress** - Envoi direct en brouillon
-- **⚙️ Dashboard Web** - Interface de configuration complète
-- **🔄 Mode automatique** - Workflow complet sans intervention
+- **📧 IMAP Monitoring** - Automatic email fetching from any mailbox
+- **🤖 Multi-AI Support** - Claude, GPT-4, Gemini, or Ollama (local)
+- **📝 Preview Mode** - Review articles before publishing
+- **🚀 WordPress Publishing** - Direct draft publishing via REST API
+- **⚙️ Web Dashboard** - Full configuration interface with real-time notifications
+- **🔄 Auto Mode** - Fully automated workflow without manual intervention
+- **🎨 Custom Prompts** - Customize AI instructions for your writing style
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────┐
-│ IMAP Poller │ → Récupération emails
+│ IMAP Poller │ → Fetch emails
 └──────┬──────┘
        ▼
 ┌─────────────────────┐
@@ -25,78 +26,94 @@
 └──────┬──────────────┘
        ▼
 ┌─────────────────┐
-│ Claude AI       │ → Génération article
+│ AI Generator    │ → Generate article (Claude/GPT/Gemini/Ollama)
 └──────┬──────────┘
        ▼
 ┌─────────────────┐
-│ WordPress API   │ → Publication draft
+│ WordPress API   │ → Publish as draft
 └─────────────────┘
 ```
 
 ## 📦 Installation
 
 ```bash
-# Cloner le repo
+# Clone the repo
 git clone https://github.com/mkarki/wordpress-article-maker.git
 cd wordpress-article-maker
 
-# Installer les dépendances
+# Install dependencies
 pip install -r requirements.txt
 
-# Copier et configurer
+# Copy and configure
 cp config.env.example config.env
-# Éditer config.env avec vos identifiants
+# Edit config.env with your credentials
 ```
 
 ## ⚙️ Configuration
 
-Éditer `config.env` :
+Edit `config.env`:
 
 ```bash
-# Email IMAP (Gmail nécessite un App Password)
+# Email IMAP (Gmail requires App Password)
 IMAP_HOST=imap.gmail.com
-IMAP_EMAIL=votre-email@gmail.com
+IMAP_EMAIL=your-email@gmail.com
 IMAP_PASSWORD=xxxx xxxx xxxx xxxx
 
-# WordPress (créer un Application Password dans WP Admin)
-WP_URL=https://votre-site.com
-WP_USER=votre-username
+# WordPress (create Application Password in WP Admin)
+WP_URL=https://your-site.com
+WP_USER=your-username
 WP_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
 
-# Claude API
+# AI Provider (anthropic, openai, gemini, ollama)
+AI_PROVIDER=anthropic
+
+# Anthropic
 ANTHROPIC_API_KEY=sk-ant-xxx
+ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
+
+# OpenAI
+OPENAI_API_KEY=sk-xxx
+OPENAI_MODEL=gpt-4o
+
+# Google Gemini
+GEMINI_API_KEY=xxx
+GEMINI_MODEL=gemini-1.5-pro
+
+# Ollama (local)
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
 
 # Options
-CHECK_INTERVAL=300          # Intervalle en secondes
-TARGET_LANG=fr              # Langue cible
-MAX_EMAILS_PER_CYCLE=5      # Max emails par cycle
-AUTO_PUBLISH=false          # Mode automatique
-FILTER_SENDER=              # Filtrer par expéditeur (optionnel)
+CHECK_INTERVAL=300          # Check interval in seconds
+TARGET_LANG=en              # Target language
+MAX_EMAILS_PER_CYCLE=5      # Max emails per cycle
+AUTO_PUBLISH=false          # Auto mode
+FILTER_SENDER=              # Filter by sender (optional)
 ```
 
-### 🔐 Gmail : Créer un App Password
+### 🔐 Gmail: Create App Password
 
-1. Activer la **validation en 2 étapes** sur votre compte Google
-2. Aller sur https://myaccount.google.com/apppasswords
-3. Créer un mot de passe pour "Mail"
-4. Copier le mot de passe généré (format: `xxxx xxxx xxxx xxxx`)
+1. Enable **2-Step Verification** on your Google account
+2. Go to https://myaccount.google.com/apppasswords
+3. Create a password for "Mail"
+4. Copy the generated password (format: `xxxx xxxx xxxx xxxx`)
 
-### 🔐 WordPress : Créer un Application Password
+### 🔐 WordPress: Create Application Password
 
-1. WordPress Admin → **Utilisateurs → Profil**
-2. Section **"Mots de passe d'application"**
-3. Créer un nouveau mot de passe
+1. WordPress Admin → **Users → Profile**
+2. Section **"Application Passwords"**
+3. Create a new password
 
-## 🚀 Utilisation
+## 🚀 Usage
 
-### Dashboard Web (recommandé)
+### Web Dashboard (recommended)
 
 ```bash
 python run.py
-# Ouvrir http://localhost:5050
+# Open http://localhost:5050
 ```
 
-### Mode CLI (automatique)
+### CLI Mode (automatic)
 
 ```bash
 python app/main.py
@@ -111,36 +128,47 @@ docker run -d --env-file config.env -p 5050:5050 wordpress-article-maker
 
 ## 📊 Dashboard
 
-Le dashboard web permet de :
+The web dashboard allows you to:
 
-| Onglet | Description |
-|--------|-------------|
-| 📧 **Emails** | Voir et sélectionner les emails à traiter |
-| 📝 **Articles en attente** | Gérer les articles générés avant publication |
-| 📊 **Historique** | Voir les articles publiés sur WordPress |
-| ⚙️ **Configuration** | Configurer IMAP, WordPress, IA et le prompt |
+| Tab | Description |
+|-----|-------------|
+| 📧 **Emails** | View and select emails to process |
+| 📝 **Pending Articles** | Manage generated articles before publishing |
+| 📊 **History** | View articles published to WordPress |
+| ⚙️ **Configuration** | Configure IMAP, WordPress, AI provider and prompt |
 
-## 💰 Coûts
+## 🤖 Supported AI Providers
 
-- **Claude Sonnet 4** : ~$0.003 par article
-- ~300 articles pour $1
+| Provider | Models |
+|----------|--------|
+| **Anthropic** | Claude Sonnet 4.5, Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku |
+| **OpenAI** | GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo |
+| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash, Gemini Pro |
+| **Ollama** | Any local model (llama3, mistral, etc.) |
+
+## 💰 Costs
+
+- **Claude Sonnet 4**: ~$0.003 per article
+- **GPT-4o**: ~$0.005 per article
+- **Gemini 1.5 Pro**: ~$0.002 per article
+- **Ollama**: Free (local)
 
 ## 📁 Structure
 
 ```
 wordpress-article-maker/
-├── app/                   # Code source
+├── app/                   # Source code
 │   ├── __init__.py
-│   ├── dashboard.py       # Dashboard Flask
-│   ├── main.py            # Mode CLI automatique
+│   ├── dashboard.py       # Flask dashboard
+│   ├── main.py            # CLI mode
 │   └── templates/
-│       └── dashboard.html # Interface web
-├── data/                  # Données runtime (non versionné)
-├── config.env             # Configuration (non versionné)
-├── config.env.example     # Template de configuration
-├── requirements.txt       # Dépendances Python
-├── run.py                 # Point d'entrée
-├── Dockerfile             # Déploiement Docker
+│       └── dashboard.html # Web interface
+├── data/                  # Runtime data (not versioned)
+├── config.env             # Configuration (not versioned)
+├── config.env.example     # Configuration template
+├── requirements.txt       # Python dependencies
+├── run.py                 # Entry point
+├── Dockerfile             # Docker deployment
 ├── README.md
 └── LICENSE
 ```
