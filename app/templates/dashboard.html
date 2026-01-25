@@ -57,6 +57,9 @@
             <button onclick="showTab('pending')" id="tab-pending" class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
                 📝 Articles en attente
             </button>
+            <button onclick="showTab('filters')" id="tab-filters" class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
+                🔍 Filtres Regex
+            </button>
             <button onclick="showTab('config')" id="tab-config" class="tab-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
                 ⚙️ Configuration
             </button>
@@ -67,8 +70,31 @@
 
         <!-- Emails Tab -->
         <div id="panel-emails" class="tab-panel">
+            <!-- Active Filters Display -->
+            <div id="active-filters-banner" class="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg hidden">
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-blue-400 font-medium">🔍 Filtres actifs :</span>
+                    <span id="active-filters-text" class="text-gray-300"></span>
+                    <a href="#" onclick="showTab('filters'); return false;" class="text-blue-400 hover:text-blue-300 ml-auto">Modifier →</a>
+                </div>
+            </div>
+            
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">Tous les emails</h2>
+                <div class="flex items-center gap-4">
+                    <h2 class="text-lg font-semibold">Emails</h2>
+                    <div class="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+                        <button onclick="setEmailFilter('all')" id="btn-filter-all" class="px-3 py-1 text-sm rounded-md bg-blue-600 transition">
+                            Tous
+                        </button>
+                        <button onclick="setEmailFilter('matched')" id="btn-filter-matched" class="px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition">
+                            ✓ Correspondants
+                        </button>
+                        <button onclick="setEmailFilter('filtered')" id="btn-filter-filtered" class="px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition">
+                            ✗ Filtrés
+                        </button>
+                    </div>
+                    <span id="email-count" class="text-sm text-gray-400"></span>
+                </div>
                 <button onclick="refreshEmails()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center gap-2 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -103,6 +129,114 @@
             <div id="history-list" class="space-y-3">
                 <div class="text-center py-12 text-gray-500">
                     <p>Aucun article publié</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters Tab -->
+        <div id="panel-filters" class="tab-panel hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Filters Configuration -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <span class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">🔍</span>
+                                Filtres par Expressions Régulières
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="filters-enabled" class="w-5 h-5 bg-gray-700 border border-gray-600 rounded focus:ring-blue-500" onchange="toggleFiltersEnabled()">
+                                    <span class="text-sm">Activer les filtres</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm text-gray-400 mb-2">Mode de filtrage</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="filter-mode" value="include" id="mode-include" class="w-4 h-4 bg-gray-700 border-gray-600">
+                                    <span class="text-sm"><strong>Inclure</strong> - Traiter uniquement les emails correspondants</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="filter-mode" value="exclude" id="mode-exclude" class="w-4 h-4 bg-gray-700 border-gray-600">
+                                    <span class="text-sm"><strong>Exclure</strong> - Ignorer les emails correspondants</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-gray-700 pt-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-medium">Règles de filtrage</h4>
+                                <button onclick="addFilter()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition">
+                                    + Ajouter un filtre
+                                </button>
+                            </div>
+                            <div id="filters-list" class="space-y-3">
+                                <div class="text-center py-8 text-gray-500">
+                                    <p>Aucun filtre configuré</p>
+                                    <p class="text-xs mt-1">Cliquez sur "Ajouter un filtre" pour commencer</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex gap-4">
+                            <button onclick="saveFilters()" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition">
+                                💾 Sauvegarder les filtres
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help & Test Panel -->
+                <div class="space-y-6">
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h4 class="font-semibold mb-3 flex items-center gap-2">
+                            <span>🧪</span> Tester une regex
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Pattern regex</label>
+                                <input type="text" id="test-pattern" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 font-mono" placeholder=".*@example\.com$">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Texte à tester</label>
+                                <input type="text" id="test-text" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="contact@example.com">
+                            </div>
+                            <button onclick="testRegex()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition">
+                                Tester
+                            </button>
+                            <div id="test-result" class="hidden p-3 rounded-lg text-sm"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h4 class="font-semibold mb-3 flex items-center gap-2">
+                            <span>📖</span> Aide Regex
+                        </h4>
+                        <div class="text-sm text-gray-400 space-y-2">
+                            <p><code class="bg-gray-700 px-1 rounded">.</code> - N'importe quel caractère</p>
+                            <p><code class="bg-gray-700 px-1 rounded">*</code> - 0 ou plus du précédent</p>
+                            <p><code class="bg-gray-700 px-1 rounded">+</code> - 1 ou plus du précédent</p>
+                            <p><code class="bg-gray-700 px-1 rounded">?</code> - 0 ou 1 du précédent</p>
+                            <p><code class="bg-gray-700 px-1 rounded">^</code> - Début de ligne</p>
+                            <p><code class="bg-gray-700 px-1 rounded">$</code> - Fin de ligne</p>
+                            <p><code class="bg-gray-700 px-1 rounded">[abc]</code> - a, b ou c</p>
+                            <p><code class="bg-gray-700 px-1 rounded">(a|b)</code> - a ou b</p>
+                            <p><code class="bg-gray-700 px-1 rounded">\.</code> - Point littéral</p>
+                            <p><code class="bg-gray-700 px-1 rounded">\d</code> - Chiffre</p>
+                            <p><code class="bg-gray-700 px-1 rounded">\w</code> - Lettre/chiffre</p>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-700">
+                            <h5 class="font-medium mb-2">Exemples</h5>
+                            <div class="text-xs text-gray-400 space-y-1">
+                                <p><code class="bg-gray-700 px-1 rounded">.*@presse\.fr$</code> - Emails de presse.fr</p>
+                                <p><code class="bg-gray-700 px-1 rounded">\[CP\]|communiqué</code> - Sujets avec [CP] ou communiqué</p>
+                                <p><code class="bg-gray-700 px-1 rounded">newsletter|promo</code> - Exclure newsletters/promos</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -436,14 +570,101 @@
             if (tab === 'pending') loadPendingArticles();
             if (tab === 'config') loadConfig();
             if (tab === 'history') loadPublishedHistory();
+            if (tab === 'filters') loadFilters();
         }
 
         // Emails
+        let allEmails = [];
+        let currentEmailFilterMode = 'all';
+
+        function loadActiveFiltersDisplay() {
+            // Load config for filter_sender
+            Promise.all([
+                fetch('/api/config').then(r => r.json()),
+                fetch('/api/filters').then(r => r.json())
+            ]).then(([config, filters]) => {
+                console.log('Config filter_sender:', config.filter_sender);
+                console.log('Regex filters:', filters);
+                
+                const banner = document.getElementById('active-filters-banner');
+                const textEl = document.getElementById('active-filters-text');
+                let filterParts = [];
+                
+                // Check filter_sender from config
+                if (config.filter_sender && config.filter_sender.trim()) {
+                    filterParts.push(`<span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded">Expéditeur IMAP: ${config.filter_sender}</span>`);
+                }
+                
+                // Check regex filters
+                if (filters.enabled && filters.filters && filters.filters.length > 0) {
+                    const activeFilters = filters.filters.filter(f => f.enabled);
+                    if (activeFilters.length > 0) {
+                        const modeText = filters.mode === 'include' ? 'Inclure' : 'Exclure';
+                        activeFilters.forEach(f => {
+                            const fieldLabel = f.field === 'sender' ? 'Exp.' : f.field === 'subject' ? 'Sujet' : 'Contenu';
+                            const desc = f.description || f.pattern;
+                            filterParts.push(`<span class="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded">${fieldLabel}: ${desc}</span>`);
+                        });
+                        filterParts.unshift(`<span class="text-gray-400">[${modeText}]</span>`);
+                    }
+                }
+                
+                if (filterParts.length > 0) {
+                    textEl.innerHTML = filterParts.join(' ');
+                    banner.classList.remove('hidden');
+                } else {
+                    textEl.innerHTML = '<span class="text-gray-500">Aucun filtre actif</span>';
+                    banner.classList.remove('hidden');
+                }
+            }).catch(err => console.error('Error loading filters:', err));
+        }
+
         function refreshEmails() {
+            loadActiveFiltersDisplay();
             socket.emit('refresh_emails');
             fetch('/api/emails')
                 .then(r => r.json())
-                .then(emails => renderEmails(emails));
+                .then(emails => {
+                    allEmails = emails;
+                    applyEmailDisplayFilter();
+                });
+        }
+
+        function setEmailFilter(mode) {
+            currentEmailFilterMode = mode;
+            // Update button styles
+            ['all', 'matched', 'filtered'].forEach(m => {
+                const btn = document.getElementById(`btn-filter-${m}`);
+                if (m === mode) {
+                    btn.classList.add('bg-blue-600');
+                    btn.classList.remove('hover:bg-gray-700');
+                } else {
+                    btn.classList.remove('bg-blue-600');
+                    btn.classList.add('hover:bg-gray-700');
+                }
+            });
+            applyEmailDisplayFilter();
+        }
+
+        function applyEmailDisplayFilter() {
+            let filteredEmails = allEmails;
+            
+            if (currentEmailFilterMode === 'matched') {
+                filteredEmails = allEmails.filter(e => e.matches_filter);
+            } else if (currentEmailFilterMode === 'filtered') {
+                filteredEmails = allEmails.filter(e => !e.matches_filter);
+            }
+            
+            // Update count display
+            const matchedCount = allEmails.filter(e => e.matches_filter).length;
+            const filteredCount = allEmails.filter(e => !e.matches_filter).length;
+            document.getElementById('email-count').innerHTML = `
+                <span class="text-green-400">${matchedCount} correspondants</span> / 
+                <span class="text-red-400">${filteredCount} filtrés</span> / 
+                ${allEmails.length} total
+            `;
+            
+            renderEmails(filteredEmails);
         }
 
         function renderEmails(emails) {
@@ -452,27 +673,27 @@
             if (emails.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-12 text-gray-500">
-                        <p>Aucun email non lu</p>
+                        <p>Aucun email ${currentEmailFilterMode === 'matched' ? 'correspondant aux filtres' : currentEmailFilterMode === 'filtered' ? 'filtré' : ''}</p>
                     </div>
                 `;
                 return;
             }
             
             container.innerHTML = emails.map(email => `
-                <div class="bg-gray-800 rounded-xl p-4 border ${email.is_interesting ? 'border-green-500/50' : 'border-gray-700'} hover:border-gray-600 transition cursor-pointer" onclick="selectEmail('${email.id}')">
+                <div class="bg-gray-800 rounded-xl p-4 border ${email.matches_filter ? 'border-green-500/50' : 'border-red-500/30'} hover:border-gray-600 transition cursor-pointer" onclick="selectEmail('${email.id}')">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
-                                ${email.is_interesting ? '<span class="interesting-badge px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Intéressant</span>' : ''}
+                                ${email.matches_filter ? '<span class="interesting-badge px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">✓ Filtre OK</span>' : '<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">✗ Filtré</span>'}
                                 <span class="text-xs text-gray-500">${email.date}</span>
                                 <span class="text-xs px-2 py-0.5 bg-gray-700 rounded">${email.language.toUpperCase()}</span>
                             </div>
                             <h4 class="font-medium truncate">${email.subject}</h4>
-                            <p class="text-sm text-gray-400 mt-1">${email.sender_name}</p>
+                            <p class="text-sm text-gray-400 mt-1">${email.sender_name} <span class="text-gray-500">&lt;${email.sender_email}&gt;</span></p>
                             <p class="text-sm text-gray-500 mt-2 line-clamp-2">${email.preview}</p>
                         </div>
                         <div class="flex flex-col gap-2">
-                            <button onclick="event.stopPropagation(); generatePreview('${email.id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition">
+                            <button onclick="event.stopPropagation(); generatePreview('${email.id}')" class="px-3 py-1.5 ${email.matches_filter ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-500'} rounded-lg text-sm transition">
                                 ✨ Générer
                             </button>
                             <span class="text-xs text-gray-500 text-center">${email.word_count} mots</span>
@@ -739,8 +960,145 @@
                 });
         }
 
+        // Filters Management
+        let filtersData = { enabled: false, mode: 'include', filters: [] };
+
+        function loadFilters() {
+            fetch('/api/filters')
+                .then(r => r.json())
+                .then(data => {
+                    filtersData = data;
+                    document.getElementById('filters-enabled').checked = data.enabled;
+                    document.getElementById('mode-include').checked = data.mode === 'include';
+                    document.getElementById('mode-exclude').checked = data.mode === 'exclude';
+                    renderFilters();
+                });
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('filters-list');
+            
+            if (!filtersData.filters || filtersData.filters.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <p>Aucun filtre configuré</p>
+                        <p class="text-xs mt-1">Cliquez sur "Ajouter un filtre" pour commencer</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filtersData.filters.map((filter, index) => `
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <div class="flex items-start gap-4">
+                        <div class="flex items-center pt-1">
+                            <input type="checkbox" ${filter.enabled ? 'checked' : ''} onchange="toggleFilter(${index})" class="w-4 h-4 bg-gray-700 border-gray-600 rounded">
+                        </div>
+                        <div class="flex-1 space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Champ</label>
+                                    <select onchange="updateFilter(${index}, 'field', this.value)" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500">
+                                        <option value="sender" ${filter.field === 'sender' ? 'selected' : ''}>Expéditeur (email)</option>
+                                        <option value="subject" ${filter.field === 'subject' ? 'selected' : ''}>Sujet</option>
+                                        <option value="content" ${filter.field === 'content' ? 'selected' : ''}>Contenu</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Description</label>
+                                    <input type="text" value="${filter.description || ''}" onchange="updateFilter(${index}, 'description', this.value)" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500" placeholder="Description optionnelle">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Pattern Regex</label>
+                                <input type="text" value="${escapeHtml(filter.pattern || '')}" onchange="updateFilter(${index}, 'pattern', this.value)" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm font-mono focus:outline-none focus:border-blue-500" placeholder=".*@example\\.com$">
+                            </div>
+                        </div>
+                        <button onclick="removeFilter(${index})" class="text-red-400 hover:text-red-300 p-1">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addFilter() {
+            filtersData.filters.push({
+                field: 'sender',
+                pattern: '',
+                description: '',
+                enabled: true
+            });
+            renderFilters();
+        }
+
+        function removeFilter(index) {
+            filtersData.filters.splice(index, 1);
+            renderFilters();
+        }
+
+        function toggleFilter(index) {
+            filtersData.filters[index].enabled = !filtersData.filters[index].enabled;
+        }
+
+        function updateFilter(index, key, value) {
+            filtersData.filters[index][key] = value;
+        }
+
+        function toggleFiltersEnabled() {
+            filtersData.enabled = document.getElementById('filters-enabled').checked;
+        }
+
+        function saveFilters() {
+            filtersData.mode = document.querySelector('input[name="filter-mode"]:checked').value;
+            filtersData.enabled = document.getElementById('filters-enabled').checked;
+            
+            fetch('/api/filters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filtersData)
+            }).then(() => {
+                showNotification('success', 'Filtres sauvegardés');
+            });
+        }
+
+        function testRegex() {
+            const pattern = document.getElementById('test-pattern').value;
+            const text = document.getElementById('test-text').value;
+            const resultDiv = document.getElementById('test-result');
+            
+            fetch('/api/filters/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pattern, text })
+            })
+            .then(r => r.json())
+            .then(result => {
+                resultDiv.classList.remove('hidden');
+                if (!result.valid) {
+                    resultDiv.className = 'p-3 rounded-lg text-sm bg-red-500/20 text-red-400';
+                    resultDiv.textContent = result.error;
+                } else if (result.matches) {
+                    resultDiv.className = 'p-3 rounded-lg text-sm bg-green-500/20 text-green-400';
+                    resultDiv.innerHTML = `✓ Correspondance trouvée: <code class="bg-gray-700 px-1 rounded">${result.match_text}</code>`;
+                } else {
+                    resultDiv.className = 'p-3 rounded-lg text-sm bg-yellow-500/20 text-yellow-400';
+                    resultDiv.textContent = '✗ Aucune correspondance';
+                }
+            });
+        }
+
         // Initial load
         loadConfig();
+        loadActiveFiltersDisplay();
     </script>
 </body>
 </html>

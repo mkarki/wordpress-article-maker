@@ -8,6 +8,7 @@ import os
 import json
 import email
 import threading
+import re
 from datetime import datetime
 from email.header import decode_header
 from pathlib import Path
@@ -38,6 +39,7 @@ PROCESSED_FILE = DATA_DIR / 'processed_emails.json'
 PENDING_FILE = DATA_DIR / 'pending_articles.json'
 PUBLISHED_FILE = DATA_DIR / 'published_articles.json'
 PROMPT_FILE = DATA_DIR / 'prompt_config.json'
+FILTERS_FILE = DATA_DIR / 'email_filters.json'
 
 # Cache for emails
 email_cache = []
@@ -250,6 +252,89 @@ def save_prompt_config(prompt):
         json.dump({"system_prompt": prompt}, f, ensure_ascii=False, indent=2)
 
 
+def load_email_filters():
+    """Load email filters configuration."""
+    default_filters = {
+        "enabled": False,
+        "mode": "include",  # "include" = only matching emails, "exclude" = reject matching emails
+        "filters": [
+            # Example filters:
+            # {"field": "sender", "pattern": ".*@example\\.com$", "enabled": True, "description": "Emails from example.com"}
+            # {"field": "subject", "pattern": "\\[CP\\]|communiqué", "enabled": True, "description": "Press releases"}
+        ]
+    }
+    if FILTERS_FILE.exists():
+        try:
+            with open(FILTERS_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return default_filters
+    return default_filters
+
+
+def save_email_filters(filters_config):
+    """Save email filters configuration."""
+    with open(FILTERS_FILE, 'w') as f:
+        json.dump(filters_config, f, ensure_ascii=False, indent=2)
+
+
+def email_matches_filters(sender_email: str, subject: str, content: str, filters_config: dict) -> bool:
+    """
+    Check if an email matches the configured regex filters.
+    Returns True if the email should be processed, False otherwise.
+    """
+    if not filters_config.get('enabled', False):
+        return True  # Filters disabled, process all emails
+    
+    filters = filters_config.get('filters', [])
+    active_filters = [f for f in filters if f.get('enabled', True)]
+    
+    if not active_filters:
+        return True  # No active filters, process all emails
+    
+    mode = filters_config.get('mode', 'include')
+    
+    for filter_rule in active_filters:
+        field = filter_rule.get('field', 'sender')
+        pattern = filter_rule.get('pattern', '')
+        
+        if not pattern:
+            continue
+        
+        try:
+            regex = re.compile(pattern, re.IGNORECASE)
+            
+            # Get the value to match against
+            if field == 'sender':
+                value = sender_email
+            elif field == 'subject':
+                value = subject
+            elif field == 'content':
+                value = content[:2000]  # Limit content search for performance
+            else:
+                continue
+            
+            match = regex.search(value)
+            
+            if mode == 'include':
+                # In include mode, if ANY filter matches, include the email
+                if match:
+                    return True
+            else:  # exclude mode
+                # In exclude mode, if ANY filter matches, exclude the email
+                if match:
+                    return False
+                    
+        except re.error:
+            # Invalid regex, skip this filter
+            continue
+    
+    # If we reach here:
+    # - In include mode: no filter matched, so exclude
+    # - In exclude mode: no filter matched, so include
+    return mode == 'exclude'
+
+
 def call_ai_provider(config: dict, system_prompt: str, user_prompt: str) -> str:
     """Call the configured AI provider and return the response text."""
     provider = config.get('ai_provider', 'anthropic').lower()
@@ -378,6 +463,7 @@ def fetch_emails():
     """Fetch unread emails from IMAP."""
     global email_cache
     config = load_config()
+    filters_config = load_email_filters()
     
     if not config['imap_email'] or not config['imap_password']:
         return []
@@ -413,8 +499,11 @@ def fetch_emails():
                 markdown = extract_content(html_body, text_body)
                 lang = detect_language(markdown)
                 
-                # All emails from trusted sender are interesting
-                is_interesting = True
+                # Apply regex filters
+                matches_filter = email_matches_filters(sender_email, subject, markdown, filters_config)
+                
+                # Determine if email is interesting (matches filters or filters disabled)
+                is_interesting = matches_filter
                 
                 emails.append({
                     'id': str(msg_id),
@@ -426,6 +515,7 @@ def fetch_emails():
                     'content': markdown,
                     'language': lang,
                     'is_interesting': is_interesting,
+                    'matches_filter': matches_filter,
                     'word_count': len(markdown.split())
                 })
             
@@ -667,6 +757,46 @@ def api_prompt():
             'message': 'Prompt IA sauvegardé'
         })
         return jsonify({'status': 'ok'})
+
+
+@app.route('/api/filters', methods=['GET', 'POST'])
+def api_filters():
+    """Get or update email filters configuration."""
+    if request.method == 'GET':
+        filters = load_email_filters()
+        return jsonify(filters)
+    else:
+        data = request.json
+        save_email_filters(data)
+        socketio.emit('notification', {
+            'type': 'success',
+            'message': 'Filtres email sauvegardés'
+        })
+        return jsonify({'status': 'ok'})
+
+
+@app.route('/api/filters/test', methods=['POST'])
+def api_test_filter():
+    """Test a regex pattern against sample text."""
+    data = request.json
+    pattern = data.get('pattern', '')
+    test_text = data.get('text', '')
+    
+    if not pattern:
+        return jsonify({'valid': False, 'error': 'Pattern vide'})
+    
+    try:
+        regex = re.compile(pattern, re.IGNORECASE)
+        match = regex.search(test_text)
+        return jsonify({
+            'valid': True,
+            'matches': match is not None,
+            'match_text': match.group() if match else None,
+            'match_start': match.start() if match else None,
+            'match_end': match.end() if match else None
+        })
+    except re.error as e:
+        return jsonify({'valid': False, 'error': f'Regex invalide: {str(e)}'})
 
 
 @app.route('/api/test-connection', methods=['POST'])
